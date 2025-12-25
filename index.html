@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />   
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Christmas Card for You</title>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #a12c2c; /* Deeper Christmas Red */
+            --color-secondary: #1E8449; /* Deeper Christmas Green */
+            --color-accent: #f1c40f; /* Gold */
+            --color-text-light: #ecf0f1;
+            --color-text-dark: #34495e;
+            --glass-blur: 8px;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #0a1332;
+        }
+
+        .background-iframe-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
+        }
+        #background-iframe { width: 100%; height: 100%; border: none; }
+        #snow-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+
+        .glass-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(var(--glass-blur)) saturate(120%);
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(120%);
+            background: none;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .card-container {
+            position: relative;
+            width: 90vmin;
+            max-width: 500px;
+            height: 60vmin;
+            max-height: 350px;
+            perspective: 1200px;
+            z-index: 100;
+        }
+
+        .envelope-wrapper {
+            position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
+            transform: rotateX(10deg) rotateY(-10deg); transition: transform 1s ease;
+            cursor: pointer; opacity: 0;
+        }
+        .envelope-wrapper:hover { transform: rotateX(0deg) rotateY(0deg) scale(1.05); }
+
+        .envelope {
+            position: absolute; width: 100%; height: 100%;
+            background-color: var(--color-primary); border-radius: 10px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4); transform-style: preserve-3d;
+        }
+
+        .envelope-flap {
+            position: absolute; top: 0; left: 0; width: 100%; height: 52%;
+            background: linear-gradient(to bottom, #d64545, var(--color-primary));
+            clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 50% 25%, 0% 100%);
+            transform-origin: top center; z-index: 12;
+        }
+        
+        .envelope-message {
+            color: var(--color-text-light); font-family: 'Dancing Script', cursive; font-size: 0.9rem;
+            text-align: left; line-height: 1.5; position: absolute; top: 15px; left: 20px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .letter {
+            position: absolute; width: 95%; height: 95%; background-color: #fdfdfd;
+            border-radius: 5px; top: 2.5%; left: 2.5%; transform: translateY(50%) translateZ(-100px);
+            box-shadow: 0 5px 25px rgba(0,0,0,0.3); z-index: 5; opacity: 0;
+            padding: 1.5rem; box-sizing: border-box; color: var(--color-text-dark); text-align: center;
+        }
+
+        .letter h1 { font-family: 'Dancing Script', cursive; font-size: 2.5rem; color: var(--color-primary); margin: 0; }
+        .letter p { font-family: 'Playfair Display', serif; font-size: 1rem; line-height: 1.6; }
+        .letter .signature { font-family: 'Dancing Script', cursive; font-size: 1.2rem; text-align: right; margin-top: 1rem; }
+
+        .ribbon-wrapper { position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none; z-index: 11; }
+        .ribbon { position: absolute; background: linear-gradient(90deg, var(--color-secondary) 33%, #fff 33%, #fff 66%, var(--color-primary) 66%); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .ribbon.vertical { width: 30px; height: 100%; left: 50%; transform: translateX(-50%); }
+        .ribbon.horizontal { width: 100%; height: 30px; top: 50%; transform: translateY(-50%); }
+        
+        .stamp {
+            position: absolute; width: 70px; height: 70px; background-color: #fff; border-radius: 50%;
+            top: 20%; right: 15%; transform: rotate(15deg); box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+            border: 3px solid var(--color-accent); z-index: 12; pointer-events: auto;
+            display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--color-accent);
+        }
+
+        .corner-decoration {
+            position: absolute; width: 150px; height: 150px; z-index: 4; pointer-events: none;
+        }
+        .corner-decoration svg { width: 100%; height: 100%; filter: drop-shadow(0 0 5px var(--color-accent)); }
+        .top-left { top: -10px; left: -10px; }
+        .top-right { top: -10px; right: -10px; transform: rotate(90deg); }
+        .bottom-left { bottom: -10px; left: -10px; transform: rotate(-90deg); }
+        .bottom-right { bottom: -10px; right: -10px; transform: rotate(180deg); }
+        /* Christmas Lights at Top */
+.top-lights {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 52px;
+    background-image: url('/lights.svg');
+    background-repeat: repeat-x;
+    background-size: 415px 52px;
+    z-index: 9999; /* Very high z-index */
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+/* Optional: Add a subtle animation */
+@keyframes gentleTwinkle {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 0.95; }
+}
+
+.top-lights {
+    animation: gentleTwinkle 4s ease-in-out infinite;
+}
+        /* Make it blend better with your dark background */
+.top-lights {
+    mix-blend-mode: screen; /* Makes lights glow brighter on dark */
+    mask-image: linear-gradient(to bottom, 
+        rgba(0,0,0,1) 0%, 
+        rgba(0,0,0,1) 80%, 
+        rgba(0,0,0,0) 100%
+    );
+}
+        @media (max-width: 768px) {
+            .card-container {
+                width: 85vw; /* Slightly less wide for mobile */
+                height: 70vh; /* Shorter for mobile portrait */
+                max-width: none;
+                max-height: none;
+            }
+
+            .letter h1 {
+                font-size: 1.8rem; /* Adjusted for new card size */
+            }
+
+            .letter p {
+                font-size: 0.8rem; /* Adjusted for new card size */
+            }
+
+            .letter .signature {
+                font-size: 1rem; /* Adjusted for new card size */
+            }
+
+            .letter {
+                padding: 0.8rem; /* Reduced padding slightly */
+            }
+            .envelope-message {
+                font-size: 0.7rem; /* Adjusted */
+                top: 8px; /* Adjusted position */
+                left: 8px; /* Adjusted position */
+            }
+            .stamp {
+                width: 50px;
+                height: 50px;
+                font-size: 1rem;
+                top: 10%;
+                right: 10%;
+            }
+            .ribbon.vertical { width: 20px; }
+            .ribbon.horizontal { height: 20px; }
+            .corner-decoration {
+                width: 100px;
+                height: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-iframe-container">
+    <!-- Fallback that works immediately -->
+    <div id="fallback-bg" style="position:absolute; width:100%; height:100%; background:linear-gradient(135deg, #0a1332 0%, #1a237e 100%); z-index:1;"></div>
+    <iframe id="background-iframe" src="/background.html" 
+            style="position:absolute; width:100%; height:100%; border:none; z-index:2;"
+            onerror="document.getElementById('fallback-bg').style.zIndex='3'; console.log('Using fallback background');">
+    </iframe>
+</div>
+    <div class="glass-layer"></div>
+    <canvas id="snow-canvas"></canvas>
+    <div class="top-lights"></div>
+    <!-- Corner Decorations -->
+    <div class="corner-decoration top-left">
+        <svg viewBox="0 0 100 100"><line x1="0" y1="0" x2="80" y2="80" stroke="#f1c40f" stroke-width="1.5"/><line x1="0" y1="20" x2="60" y2="80" stroke="#f1c40f" stroke-width="1"/><line x1="20" y1="0" x2="80" y2="60" stroke="#f1c40f" stroke-width="1"/></svg>
+    </div>
+    <div class="corner-decoration top-right">
+        <svg viewBox="0 0 100 100"><line x1="0" y1="0" x2="80" y2="80" stroke="#f1c40f" stroke-width="1.5"/><line x1="0" y1="20" x2="60" y2="80" stroke="#f1c40f" stroke-width="1"/><line x1="20" y1="0" x2="80" y2="60" stroke="#f1c40f" stroke-width="1"/></svg>
+    </div>
+    <div class="corner-decoration bottom-left">
+        <svg viewBox="0 0 100 100"><line x1="0" y1="0" x2="80" y2="80" stroke="#f1c40f" stroke-width="1.5"/><line x1="0" y1="20" x2="60" y2="80" stroke="#f1c40f" stroke-width="1"/><line x1="20" y1="0" x2="80" y2="60" stroke="#f1c40f" stroke-width="1"/></svg>
+    </div>
+    <div class="corner-decoration bottom-right">
+        <svg viewBox="0 0 100 100"><line x1="0" y1="0" x2="80" y2="80" stroke="#f1c40f" stroke-width="1.5"/><line x1="0" y1="20" x2="60" y2="80" stroke="#f1c40f" stroke-width="1"/><line x1="20" y1="0" x2="80" y2="60" stroke="#f1c40f" stroke-width="1"/></svg>
+    </div>
+
+    <div class="card-container">
+        <div class="envelope-wrapper">
+            <div class="envelope">
+                <div class="letter">
+                    <h1>Merry Christmas!</h1>
+                    <p>
+                        Hope your day went well!<br>
+                        Thinking of you all in Belgium<br>
+                        Wishing you peace, health, and warm moments together.<br>
+                        May this season bring a little extra joy!<br>
+                        Miss you and can’t wait to see you again.
+                    </p>
+                    <p class="signature">— Sahanshil Bhattarai</p>
+                </div>
+                <div class="envelope-flap">
+                    <div class="envelope-message">
+                        To: Ram Chandra Paudel<br><br>
+                        From: Sahanshil Bhattarai
+                    </div>
+                </div>
+            </div>
+            <div class="ribbon-wrapper">
+                <div class="ribbon vertical"></div>
+                <div class="ribbon horizontal"></div>
+                <div class="stamp">❆</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const snowCanvas = document.getElementById('snow-canvas');
+            const snowCtx = snowCanvas.getContext('2d');
+            let snowflakes = [];
+            const numSnowflakes = 150;
+            const snowflakeShapes = ['\u2744', '\u2745', '\u2746'];
+
+            function resizeCanvas() {
+                snowCanvas.width = window.innerWidth;
+                snowCanvas.height = window.innerHeight;
+            }
+
+            function createSnowflakes() {
+                snowflakes = [];
+                for (let i = 0; i < numSnowflakes; i++) {
+                    snowflakes.push({
+                        x: Math.random() * snowCanvas.width,
+                        y: Math.random() * snowCanvas.height,
+                        size: Math.random() * 15 + 5,
+                        speed: Math.random() * 1 + 0.5,
+                        drift: Math.random() * 0.5 - 0.25,
+                        rotation: Math.random() * Math.PI * 2,
+                        rotationSpeed: (Math.random() - 0.5) * 0.01,
+                        shape: snowflakeShapes[Math.floor(Math.random() * snowflakeShapes.length)],
+                        opacity: Math.random() * 0.7 + 0.3
+                    });
+                }
+            }
+
+            function drawSnowflakes() {
+                snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
+                snowflakes.forEach(flake => {
+                    flake.y += flake.speed;
+                    flake.x += flake.drift;
+                    flake.rotation += flake.rotationSpeed;
+                    if (flake.y > snowCanvas.height) {
+                        flake.y = -flake.size;
+                        flake.x = Math.random() * snowCanvas.width;
+                    }
+                    snowCtx.save();
+                    snowCtx.globalAlpha = flake.opacity;
+                    snowCtx.fillStyle = 'white';
+                    snowCtx.font = `${flake.size}px Arial`;
+                    snowCtx.translate(flake.x, flake.y);
+                    snowCtx.rotate(flake.rotation);
+                    snowCtx.fillText(flake.shape, 0, 0);
+                    snowCtx.restore();
+                });
+                requestAnimationFrame(drawSnowflakes);
+            }
+
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+            createSnowflakes();
+            drawSnowflakes();
+
+            const envelopeWrapper = document.querySelector('.envelope-wrapper');
+            const stamp = document.querySelector('.stamp');
+            const ribbonWrapper = document.querySelector('.ribbon-wrapper');
+            const envelopeFlap = document.querySelector('.envelope-flap');
+            const letter = document.querySelector('.letter');
+            
+            let opened = false;
+            
+            anime({
+                targets: envelopeWrapper,
+                translateY: ['-100vh', '0%'],
+                opacity: [0, 1],
+                rotateX: '10deg',
+                rotateY: '-10deg',
+                duration: 2000,
+                easing: 'easeOutExpo',
+                delay: 500,
+            });
+
+            anime({
+                targets: '.corner-decoration line',
+                strokeDashoffset: [anime.setDashoffset, 0],
+                easing: 'easeInOutSine',
+                duration: 1500,
+                delay: (el, i) => i * 250 + 500,
+                direction: 'alternate',
+                loop: true
+            });
+
+            const openCard = () => {
+                if (opened) return;
+                opened = true;
+                
+                anime.timeline({
+                    easing: 'easeOutExpo',
+                })
+                .add({
+                    targets: [stamp, ribbonWrapper],
+                    translateY: ['-200%', '0%'],
+                    rotate: ['45deg', '0deg'],
+                    opacity: [0, 1],
+                    duration: 1200,
+                })
+                .add({
+                    targets: envelopeFlap,
+                    rotateX: '-180deg',
+                    duration: 1000,
+                    easing: 'easeInOutCubic',
+                }, '-=800')
+                .add({
+                    targets: letter,
+                    translateY: ['50%', '0%'],
+                    translateZ: ['-100px', '100px'],
+                    opacity: 1,
+                    duration: 1500,
+                }, '-=1000');
+            };
+            
+            envelopeWrapper.addEventListener('click', openCard);
+        });
+    </script>
+    <script>
+        // Add to DOMContentLoaded
+const backgroundIframe = document.getElementById('background-iframe');
+if (backgroundIframe) {
+    backgroundIframe.onerror = function() {
+        console.log('Background failed, using fallback');
+        this.style.display = 'none';
+        // Create fallback background
+        const fallback = document.createElement('div');
+        fallback.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a1332 0%, #1a237e 100%);
+            z-index: 1;
+        `;
+        document.querySelector('.background-iframe-container').appendChild(fallback);
+    };
+}
+    </script>
+</body>
+</html>
